@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Breakout - Weather Test Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #05050a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #1a1a3a;
+        }
+        canvas {
+            background-color: #0a0a14;
+            display: block;
+        }
+        .ui-panel {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+            z-index: 5;
+        }
+        .weather-info {
+            color: #ffd700;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 20, 0.88);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            text-align: center;
+            padding: 20px;
+        }
+        #overlay h1 {
+            font-size: 42px;
+            color: #ff3366;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px #ff3366;
+        }
+        .weather-msg-box {
+            background: rgba(255, 215, 0, 0.12);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            padding: 15px 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            max-width: 520px;
+            width: 100%;
+        }
+        .weather-msg-box p {
+            color: #ffd700;
+            font-size: 15px;
+            margin: 4px 0;
+            line-height: 1.4;
+        }
+        .temp-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 12px 0 8px 0;
+            pointer-events: auto;
+        }
+        .temp-input-group label {
+            font-size: 15px;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .temp-input-group input {
+            width: 70px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #00f2fe;
+            background: #0a0a18;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            outline: none;
+        }
+        .temp-input-group button {
+            background: #00f2fe;
+            border: none;
+            color: #000;
+            padding: 6px 14px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .temp-input-group button:hover {
+            background: #4facfe;
+        }
+        #overlay p.sub-desc {
+            font-size: 15px;
+            color: #cccccc;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            border: none;
+            color: #000;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui-panel">
+        <div>SCORE: <span id="score-text" style="color: #00f2fe;">0</span></div>
+        <div class="weather-info" id="ui-weather-text">☀️ 서울 11°C (맑음)</div>
+        <div>LIVES: <span id="lives-text" style="color: #ff3366;">3</span></div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="overlay">
+        <h1 id="overlay-title">SKULL BREAKOUT</h1>
+        <div class="weather-msg-box">
+            <p><strong>[날씨 연동 테스트 시스템]</strong></p>
+            
+            <div class="temp-input-group">
+                <label for="temp-input">테스트 기온:</label>
+                <input type="number" id="temp-input" value="11" min="-30" max="50">
+                <span style="color:#fff; font-weight:bold;">°C</span>
+                <button onclick="applyTemp()">적용</button>
+            </div>
+
+            <p id="speed-desc">기온이 10°~25° 사이이므로, <strong>공 속도가 기본 속도로 유지</strong>됩니다.</p>
+        </div>
+        <p class="sub-desc" id="overlay-sub">방향키(←, →) 또는 A/D 키로 조정하세요!</p>
+        <button class="btn" id="start-btn" onclick="startGame()">게임 시작 (R)</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreText = document.getElementById("score-text");
+    const livesText = document.getElementById("lives-text");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlay-title");
+    const overlaySub = document.getElementById("overlay-sub");
+    const startBtn = document.getElementById("start-btn");
+    const speedDesc = document.getElementById("speed-desc");
+    const uiWeatherText = document.getElementById("ui-weather-text");
+    const tempInput = document.getElementById("temp-input");
+
+    // 기본 설정값
+    let currentTemp = 11;
+    let speedMultiplier = 1.0;
+
+    function updateWeatherSpeed(temp) {
+        currentTemp = temp;
+        let speedMessage = "";
+
+        if (currentTemp >= 25) {
+            speedMultiplier = 1.35;
+            speedMessage = `기온이 25°C 이상(${currentTemp}°C)이므로, <strong>공 속도가 빠르게 빨라집니다!</strong> (🔥 핫 스피드)`;
+            uiWeatherText.textContent = `🔥 서울 ${currentTemp}°C (폭염 테스트)`;
+        } else if (currentTemp < 10) {
+            speedMultiplier = 0.75;
+            speedMessage = `기온이 10°C 미만(${currentTemp}°C)이므로, <strong>공 속도가 느려집니다.</strong> (❄️ 슬로우 모션)`;
+            uiWeatherText.textContent = `❄️ 서울 ${currentTemp}°C (한파 테스트)`;
+        } else {
+            speedMultiplier = 1.0;
+            speedMessage = `기온이 10°~25° 사이(${currentTemp}°C)이므로, <strong>공 속도가 기본 속도로 유지</strong>됩니다.`;
+            uiWeatherText.textContent = `☀️ 서울 ${currentTemp}°C (맑음)`;
+        }
+        speedDesc.innerHTML = speedMessage;
+    }
+
+    function applyTemp() {
+        const val = parseFloat(tempInput.value);
+        if (!isNaN(val)) {
+            updateWeatherSpeed(val);
+        }
+    }
+
+    // 초기 적용
+    updateWeatherSpeed(currentTemp);
+
+    let gameState = "MENU";
+    let score = 0;
+    let lives = 3;
+
+    const keys = { left: false, right: false };
+
+    const paddle = {
+        x: canvas.width / 2 - 60,
+        y: canvas.height - 40,
+        width: 120,
+        height: 15,
+        speed: 8,
+        color: "#00f2fe"
+    };
+
+    class Ball {
+        constructor(x, y, speedX, speedY) {
+            this.x = x || canvas.width / 2;
+            this.y = y || canvas.height / 2 + 50;
+            this.radius = 14;
+            
+            let baseDx = Math.random() < 0.5 ? 4 : -4;
+            let baseDy = -5;
+            this.speedX = speedX !== undefined ? speedX : baseDx * speedMultiplier;
+            this.speedY = speedY !== undefined ? speedY : baseDy * speedMultiplier;
+            this.angle = 0;
+        }
+
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            this.angle += 0.15 * speedMultiplier;
+
+            if (this.x - this.radius <= 0) {
+                this.x = this.radius;
+                this.speedX *= -1;
+            } else if (this.x + this.radius >= canvas.width) {
+                this.x = canvas.width - this.radius;
+                this.speedX *= -1;
+            }
+
+            if (this.y - this.radius <= 0) {
+                this.y = this.radius;
+                this.speedY *= -1;
+            }
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+
+            ctx.fillStyle = "#e0e0e0";
+            ctx.beginPath();
+            ctx.moveTo(0, -16);
+            ctx.lineTo(-3, 4);
+            ctx.lineTo(3, 4);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -14);
+            ctx.lineTo(0, 2);
+            ctx.stroke();
+
+            ctx.fillStyle = "#ffd700";
+            ctx.fillRect(-8, 4, 16, 3);
+
+            ctx.fillStyle = "#8b4513";
+            ctx.fillRect(-2, 7, 4, 8);
+
+            ctx.restore();
+        }
+    }
+
+    class Item {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = 30;
+            this.height = 20;
+            this.speedY = 3;
+            const rand = Math.random();
+            this.type = rand < 0.4 ? "EXPAND" : (rand < 0.8 ? "MULTI" : "LIFE");
+        }
+
+        update() {
+            this.y += this.speedY;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.fillStyle = this.type === "EXPAND" ? "#00e676" : (this.type === "MULTI" ? "#00f2fe" : "#ff3366");
+            ctx.beginPath();
+            ctx.roundRect(this.x - this.width / 2, this.y, this.width, this.height, 6);
+            ctx.fill();
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const label = this.type === "EXPAND" ? "E" : (this.type === "MULTI" ? "M" : "H");
+            ctx.fillText(label, this.x, this.y + this.height / 2);
+            ctx.restore();
+        }
+    }
+
+    class Brick {
+        constructor(x, y, width, height, hp = 1) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.hp = hp;
+        }
+
+        draw() {
+            const bx = this.x;
+            const by = this.y;
+            const bw = this.width;
+            const bh = this.height;
+            const boneColor = this.hp === 2 ? "#ff6b6b" : "#e0e0e5";
+
+            ctx.save();
+            ctx.fillStyle = boneColor;
+            ctx.beginPath();
+            ctx.roundRect(bx + 6, by + 2, bw - 12, bh - 10, 6);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.ellipse(bx + bw / 2, by + bh / 2, bw / 2 - 2, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.roundRect(bx + 12, by + bh - 10, bw - 24, 8, 3);
+            ctx.fill();
+
+            ctx.fillStyle = "#0a0a14";
+            ctx.beginPath();
+            ctx.roundRect(bx + 12, by + 6, 10, 12, 3);
+            ctx.roundRect(bx + bw - 22, by + 6, 10, 12, 3);
+            ctx.fill();
+
+            ctx.fillStyle = this.hp === 2 ? "#ff0000" : "#64b5f6";
+            ctx.beginPath();
+            ctx.arc(bx + 17, by + 12, 2, 0, Math.PI * 2);
+            ctx.arc(bx + bw - 17, by + 12, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#0a0a14";
+            ctx.beginPath();
+            ctx.moveTo(bx + bw / 2, by + 12);
+            ctx.lineTo(bx + bw / 2 - 3, by + 19);
+            ctx.lineTo(bx + bw / 2 + 3, by + 19);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "#0a0a14";
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 3; i++) {
+                const tx = bx + 18 + i * 10;
+                ctx.beginPath();
+                ctx.moveTo(tx, by + bh - 10);
+                ctx.lineTo(tx, by + bh - 2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+    }
+
+    let balls = [];
+    let bricks = [];
+    let items = [];
+
+    let scareTimer = Math.floor(Math.random() * 300) + 300;
+    let scareDuration = 0;
+
+    const particles = [];
+    for(let i=0; i<30; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: Math.random() * 2 + 1,
+            speedY: (Math.random() * 0.5 + 0.2),
+            alpha: Math.random() * 0.5 + 0.2
+        });
+    }
+
+    function initBricks() {
+        bricks = [];
+        const rows = 5;
+        const cols = 10;
+        const width = 70;
+        const height = 25;
+        const padding = 10;
+        const offsetX = 35;
+        const offsetY = 60;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const bx = offsetX + c * (width + padding);
+                const by = offsetY + r * (height + padding);
+                const hp = r < 2 ? 2 : 1;
+                bricks.push(new Brick(bx, by, width, height, hp));
+            }
+        }
+    }
+
+    function drawWeatherBackground() {
+        ctx.save();
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, "rgba(255, 220, 100, 0.07)");
+        grad.addColorStop(1, "transparent");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ffd700";
+        particles.forEach(p => {
+            p.y -= p.speedY;
+            if(p.y < 0) p.y = canvas.height;
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    }
+
+    function drawGiantSkull() {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(60, 0, 0, 0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#f0f0f5";
+        ctx.beginPath();
+        ctx.roundRect(cx - 120, cy - 140, 240, 200, 40);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 150, 60, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.roundRect(cx - 80, cy + 40, 160, 80, 20);
+        ctx.fill();
+
+        ctx.fillStyle = "#0a0a14";
+        ctx.beginPath();
+        ctx.ellipse(cx - 50, cy - 45, 25, 35, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 50, cy - 45, 25, 35, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(cx - 50, cy - 45, 12, 0, Math.PI * 2);
+        ctx.arc(cx + 50, cy - 45, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#0a0a14";
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 10);
+        ctx.lineTo(cx - 15, cy + 15);
+        ctx.lineTo(cx + 15, cy + 15);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "#0a0a14";
+        ctx.lineWidth = 4;
+        for (let i = 0; i < 5; i++) {
+            const tx = cx - 50 + i * 25;
+            ctx.beginPath();
+            ctx.moveTo(tx, cy + 40);
+            ctx.lineTo(tx, cy + 115);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = "#ff0000";
+        ctx.font = "bold 64px sans-serif";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 20;
+        ctx.fillText("BOO!!", cx, cy - 170);
+
+        ctx.restore();
+    }
+
+    function startGame() {
+        applyTemp(); // 게임 시작 시 설정된 기온 반영
+        score = 0;
+        lives = 3;
+        paddle.width = 120;
+        paddle.x = canvas.width / 2 - 60;
+        balls = [new Ball()];
+        items = [];
+        initBricks();
+
+        scoreText.textContent = score;
+        livesText.textContent = lives;
+        overlay.style.display = "none";
+        gameState = "PLAYING";
+    }
+
+    function gameOver() {
+        gameState = "GAMEOVER";
+        overlayTitle.textContent = "GAME OVER";
+        overlayTitle.style.color = "#ff3366";
+        speedDesc.parentElement.style.display = "none";
+        overlaySub.textContent = `최종 점수: ${score}점`;
+        startBtn.textContent = "다시 도전 (R)";
+        overlay.style.display = "flex";
+    }
+
+    function gameWin() {
+        gameState = "WIN";
+        overlayTitle.textContent = "YOU WIN!";
+        overlayTitle.style.color = "#00f2fe";
+        speedDesc.parentElement.style.display = "none";
+        overlaySub.textContent = `클리어 축하합니다! 최종 점수: ${score}점`;
+        startBtn.textContent = "다시 하기 (R)";
+        overlay.style.display = "flex";
+    }
+
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = true;
+        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = true;
+        if ((e.key === "r" || e.key === "R") && gameState !== "PLAYING") {
+            speedDesc.parentElement.style.display = "block";
+            startGame();
+        }
+    });
+
+    window.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = false;
+        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = false;
+    });
+
+    function update() {
+        if (gameState === "PLAYING") {
+            if (keys.left) paddle.x = Math.max(0, paddle.x - paddle.speed);
+            if (keys.right) paddle.x = Math.min(canvas.width - paddle.width, paddle.x + paddle.speed);
+
+            if (scareDuration > 0) {
+                scareDuration--;
+            } else {
+                scareTimer--;
+                if (scareTimer <= 0) {
+                    scareDuration = 45;
+                    scareTimer = Math.floor(Math.random() * 450) + 450;
+                }
+            }
+
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const b = balls[i];
+                b.update();
+
+                if (b.y + b.radius >= paddle.y && b.x >= paddle.x && b.x <= paddle.x + paddle.width) {
+                    if (b.speedY > 0) {
+                        const offset = (b.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2);
+                        b.speedX = offset * 6 * speedMultiplier;
+                        b.speedY *= -1;
+                        b.y = paddle.y - b.radius;
+                    }
+                }
+
+                for (let j = bricks.length - 1; j >= 0; j--) {
+                    const br = bricks[j];
+                    if (b.x + b.radius > br.x && b.x - b.radius < br.x + br.width &&
+                        b.y + b.radius > br.y && b.y - b.radius < br.y + br.height) {
+                        
+                        b.speedY *= -1;
+                        br.hp--;
+
+                        if (br.hp <= 0) {
+                            if (Math.random() < 0.35) {
+                                items.push(new Item(br.x + br.width / 2, br.y + br.height / 2));
+                            }
+                            bricks.splice(j, 1);
+                            score += 100;
+                        } else {
+                            score += 50;
+                        }
+
+                        scoreText.textContent = score;
+
+                        if (bricks.length === 0) {
+                            gameWin();
+                            return;
+                        }
+                        break;
+                    }
+                }
+
+                if (b.y - b.radius > canvas.height) {
+                    balls.splice(i, 1);
+                }
+            }
+
+            if (balls.length === 0) {
+                lives--;
+                livesText.textContent = lives;
+                if (lives <= 0) {
+                    gameOver();
+                } else {
+                    balls.push(new Ball());
+                }
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const it = items[i];
+                it.update();
+
+                if (it.y > canvas.height) {
+                    items.splice(i, 1);
+                } else if (it.x >= paddle.x && it.x <= paddle.x + paddle.width &&
+                           it.y + it.height >= paddle.y && it.y <= paddle.y + paddle.height) {
+                    
+                    if (it.type === "EXPAND") {
+                        paddle.width = Math.min(paddle.width + 40, 200);
+                    } else if (it.type === "MULTI") {
+                        if (balls.length > 0) {
+                            const mainB = balls[0];
+                            balls.push(new Ball(mainB.x, mainB.y, -mainB.speedX, mainB.speedY));
+                        }
+                    } else if (it.type === "LIFE") {
+                        lives++;
+                        livesText.textContent = lives;
+                    }
+
+                    items.splice(i, 1);
+                }
+            }
+        }
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawWeatherBackground();
+
+        ctx.save();
+        ctx.fillStyle = paddle.color;
+        ctx.beginPath();
+        ctx.roundRect(paddle.x, paddle.y, paddle.width, paddle.height, 5);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.roundRect(paddle.x + 5, paddle.y + 2, paddle.width - 10, 3, 2);
+        ctx.fill();
+        ctx.restore();
+
+        bricks.forEach(br => br.draw());
+        balls.forEach(b => b.draw());
+        items.forEach(it => it.draw());
+
+        if (scareDuration > 0 && gameState === "PLAYING") {
+            drawGiantSkull();
+        }
+    }
+
+    function gameLoop() {
+        update();
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+</body>
+</html>
